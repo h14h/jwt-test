@@ -2,10 +2,9 @@
 
 This repo contains an example of using Supabase Auth in an Edge Function.
 
-[!NOTE]
-As I used bun when setting up this project, so that's what I'll be using in my
-examples. Feel free to open up a PR to add examples for other package managers
-:)
+> [!NOTE]
+> I used bun when setting up this project, so that's what I'll be using in the
+> below examples. Feel free to open up a PR to add other package managers 🙂
 
 ## Setup
 
