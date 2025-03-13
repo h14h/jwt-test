@@ -1,42 +1,73 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type Session } from "@supabase/supabase-js";
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL ?? "",
   import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
 );
 
-interface Instrument {
-  id: number;
-  name: string;
-}
-
 function App() {
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
-  async function getInstruments() {
-    console.log("Getting instruments...");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
 
-    const { data } = await supabase.from("instruments").select("*");
-    const instruments = data as Instrument[];
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-    setInstruments(instruments);
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function triggerJwtTest() {
+    setTestResult("Triggering JWT Test Function...");
+    const { data, error } = await supabase.functions.invoke("hello-jwt");
+
+    if (error) {
+      console.info(error);
+      setTestResult(JSON.stringify(error, null, 2));
+    } else {
+      console.info(data);
+      setTestResult(JSON.stringify(data, null, 2));
+    }
+  }
+
+  if (!session) {
+    return <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />;
   }
 
   return (
     <>
-      <h1>Supabase Demo</h1>
+      <h1>JWT Test</h1>
       <div className="card">
-        <button type="button" onClick={getInstruments}>
-          Get Instruments
+        <button type="button" onClick={triggerJwtTest}>
+          Trigger JWT Test Function
         </button>
-        <h3>Instrument List</h3>
-        <div>
-          {instruments.map((instrument) => (
-            <p key={instrument.id}>{instrument.name}</p>
-          ))}
+        <div style={{ textAlign: "left", marginTop: "4rem" }}>
+          <b>JWT Test Result:</b>
+          <div
+            style={{
+              border: "1px solid gray",
+              backgroundColor: "#eee",
+              padding: "1rem",
+              marginTop: "0.5rem",
+              minWidth: "640px",
+              borderRadius: "0.25rem",
+            }}
+          >
+            <code style={{ whiteSpace: "pre-wrap" }}>
+              {testResult || "Trigger JWT Test Function to See Result"}
+            </code>
+          </div>
         </div>
       </div>
     </>
