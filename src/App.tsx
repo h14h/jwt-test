@@ -5,16 +5,32 @@ import { createClient, type Session } from "@supabase/supabase-js";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 
-const supabase = createClient(
+import type { Database } from "../supabase.types.gen";
+
+const supabase = createClient<Database>(
   import.meta.env.VITE_SUPABASE_URL ?? "",
   import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
 );
 
+// TODO: Listen to realtime writes from test table
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
+    const testChannel = supabase
+      .channel("table-test-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+        },
+        (payload) =>
+          console.log("Table test payload:", JSON.stringify(payload, null, 2)),
+      )
+      .subscribe();
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -25,7 +41,10 @@ function App() {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      supabase.removeChannel(testChannel);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function triggerJwtTest() {
@@ -33,10 +52,8 @@ function App() {
     const { data, error } = await supabase.functions.invoke("hello-jwt");
 
     if (error) {
-      console.info(error);
       setTestResult(JSON.stringify(error, null, 2));
     } else {
-      console.info(data);
       setTestResult(JSON.stringify(data, null, 2));
     }
   }
